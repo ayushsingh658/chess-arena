@@ -1,0 +1,17 @@
+{
+  "name": "@chess-arena/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "check-types": "tsc --noEmit",
+    "lint": "echo 'No lint configured'"
+  },
+  "devDependencies": {
+    "@chess-arena/typescript-config": "*",
+    "typescript": "5.9.2"
+  }
+}

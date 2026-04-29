@@ -1,0 +1,89 @@
+// This is your Prisma schema file.
+// Learn more at: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────
+// User Model
+// ─────────────────────────────────────────────────────────
+// Stores player accounts with Glicko-2 rating components.
+// ratingDeviation and volatility are Glicko-2 specific —
+// they measure confidence in the rating and how consistently
+// the player performs.
+
+model User {
+  id              String   @id @default(cuid())
+  username        String   @unique
+  email           String   @unique
+  passwordHash    String
+  eloRating       Int      @default(1200)
+  ratingDeviation Float    @default(350)
+  volatility      Float    @default(0.06)
+  gamesPlayed     Int      @default(0)
+  wins            Int      @default(0)
+  losses          Int      @default(0)
+  draws           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  whiteGames Game[] @relation("WhitePlayer")
+  blackGames Game[] @relation("BlackPlayer")
+  wonGames   Game[] @relation("Winner")
+
+  @@index([eloRating])
+  @@index([username])
+}
+
+// ─────────────────────────────────────────────────────────
+// Game Model (Match History)
+// ─────────────────────────────────────────────────────────
+// Stores completed games with full PGN for replay.
+// Active games live in Redis; only completed games
+// are persisted here for durability and querying.
+
+model Game {
+  id            String      @id @default(cuid())
+  whitePlayerId String
+  blackPlayerId String
+  winnerId      String?
+  status        GameStatus
+  result        GameResult?
+  pgn           String      @db.Text
+  finalFen      String
+  timeControl   Int         // initial time in seconds
+  increment     Int         // increment per move in seconds
+  totalMoves    Int
+  playedAt      DateTime    @default(now())
+  endedAt       DateTime?
+
+  whitePlayer User  @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  blackPlayer User  @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  winner      User? @relation("Winner", fields: [winnerId], references: [id])
+
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([playedAt])
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  ABORTED
+}
+
+enum GameResult {
+  WHITE_WINS
+  BLACK_WINS
+  DRAW
+  TIMEOUT
+  RESIGNATION
+  ABANDONMENT
+}
