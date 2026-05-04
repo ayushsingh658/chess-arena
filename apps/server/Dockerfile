@@ -32,6 +32,9 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install Stockfish for engine analysis
+RUN apk update && apk add --no-cache stockfish
+
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 expressjs

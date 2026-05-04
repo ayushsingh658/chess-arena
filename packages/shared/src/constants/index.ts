@@ -46,4 +46,5 @@ export const REDIS_KEYS = {
   MATCHMAKING_QUEUE: 'matchmaking:queue',
   USER_SOCKET: 'user:socket:',
   USER_ACTIVE_GAME: 'user:active-game:',
+  ACTIVE_GAMES: 'games:active',
 } as const;

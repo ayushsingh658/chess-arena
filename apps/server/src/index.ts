@@ -7,6 +7,7 @@ import { createSocketServer } from './config/socket.js';
 import { socketAuthMiddleware } from './middleware/socketAuth.js';
 import { authRouter } from './handlers/authHandler.js';
 import { userRouter } from './handlers/userHandler.js';
+import { gameRouter } from './handlers/gameApiHandler.js';
 import { registerGameHandlers } from './handlers/gameHandler.js';
 import { startMatchmakingWorker } from './workers/matchmakingWorker.js';
 import { startClockWorker } from './workers/clockWorker.js';
@@ -38,6 +39,7 @@ app.get('/health', (_req, res) => {
 // ── REST Routes ────────────────────────────────────────
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
+app.use('/games', gameRouter);
 
 // ── HTTP Server + Socket.io ────────────────────────────
 const httpServer = createServer(app);

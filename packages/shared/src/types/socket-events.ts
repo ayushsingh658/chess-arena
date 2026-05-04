@@ -1,6 +1,7 @@
 import type { Move } from './game.js';
 import type { MatchRequest, MatchFoundPayload, QueueStatusPayload } from './matchmaking.js';
 import type { GameUpdatePayload, GameOverPayload } from './game.js';
+import type { ChatMessage } from './chat.js';
 
 // ─────────────────────────────────────────────────────────
 // Socket Event Names — Single source of truth
@@ -19,6 +20,8 @@ export const ClientEvents = {
   OFFER_DRAW: 'game:draw:offer',
   RESPOND_DRAW: 'game:draw:respond',
   RECONNECT_GAME: 'game:reconnect',
+  SEND_CHAT: 'chat:send',
+  SPECTATE_GAME: 'game:spectate',
 } as const;
 
 /**
@@ -33,6 +36,8 @@ export const ServerEvents = {
   OPPONENT_DISCONNECTED: 'game:opponent-disconnected',
   OPPONENT_RECONNECTED: 'game:opponent-reconnected',
   ERROR: 'game:error',
+  CHAT_MESSAGE: 'chat:message',
+  GAME_EVALUATION: 'game:evaluation',
 } as const;
 
 // ─────────────────────────────────────────────────────────
@@ -52,6 +57,8 @@ export interface ClientToServerEvents {
   [ClientEvents.OFFER_DRAW]: (payload: { gameId: string }) => void;
   [ClientEvents.RESPOND_DRAW]: (payload: { gameId: string; accept: boolean }) => void;
   [ClientEvents.RECONNECT_GAME]: () => void;
+  [ClientEvents.SEND_CHAT]: (payload: { gameId: string; content: string }) => void;
+  [ClientEvents.SPECTATE_GAME]: (payload: { gameId: string }) => void;
 }
 
 /**
@@ -68,6 +75,8 @@ export interface ServerToClientEvents {
   [ServerEvents.OPPONENT_DISCONNECTED]: (payload: { timeoutMs: number }) => void;
   [ServerEvents.OPPONENT_RECONNECTED]: () => void;
   [ServerEvents.ERROR]: (payload: { message: string; code: string }) => void;
+  [ServerEvents.CHAT_MESSAGE]: (payload: ChatMessage) => void;
+  [ServerEvents.GAME_EVALUATION]: (payload: { gameId: string; score: number; bestMove?: string }) => void;
 }
 
 /**

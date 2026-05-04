@@ -69,15 +69,8 @@ export function startMatchmakingWorker(io: TypedIO): void {
         });
 
         // Both players join the game room
-        const p1Sockets = await io.in(match.player1.socketId).fetchSockets();
-        const p2Sockets = await io.in(match.player2.socketId).fetchSockets();
-
-        for (const s of p1Sockets) {
-          s.join(`game:${gameState.gameId}`);
-        }
-        for (const s of p2Sockets) {
-          s.join(`game:${gameState.gameId}`);
-        }
+        io.to(match.player1.socketId).socketsJoin(`game:${gameState.gameId}`);
+        io.to(match.player2.socketId).socketsJoin(`game:${gameState.gameId}`);
 
         logger.info(
           'MatchmakingWorker',

@@ -12,13 +12,16 @@
   },
   "dependencies": {
     "@chess-arena/shared": "*",
+    "chess.js": "^1.4.0",
     "framer-motion": "^12.7.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-chessboard": "^4.7.0",
     "react-dom": "^19.2.5",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.6.0",
     "socket.io-client": "^4.8.0",
+    "stockfish.js": "^10.0.2",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

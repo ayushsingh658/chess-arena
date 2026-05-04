@@ -33,7 +33,7 @@ export function LeaderboardPage() {
     <div className="max-w-4xl mx-auto px-8 py-12">
       <h2 className="text-3xl font-bold gradient-text mb-2">Global Leaderboard</h2>
       <p className="text-text-muted mb-8">Top 50 highest rated players in the arena.</p>
-      
+
       {isLoading ? (
         <div className="text-text-muted">Loading leaderboard...</div>
       ) : players.length === 0 ? (
@@ -54,8 +54,8 @@ export function LeaderboardPage() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {players.map((player, index) => {
-                const winRate = player.gamesPlayed > 0 
-                  ? Math.round((player.wins / player.gamesPlayed) * 100) 
+                const winRate = player.gamesPlayed > 0
+                  ? Math.round((player.wins / player.gamesPlayed) * 100)
                   : 0;
 
                 return (

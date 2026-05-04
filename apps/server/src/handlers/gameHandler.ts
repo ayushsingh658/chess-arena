@@ -71,7 +71,7 @@ export function registerGameHandlers(io: TypedIO, socket: TypedSocket): void {
 
   socket.on(ClientEvents.CANCEL_MATCH, async () => {
     try {
-      await matchmakingService.removeFromAllQueues(userId);
+      await matchmakingService.removeSocketFromAllQueues(socket.id);
       logger.info('Handler', `${username} cancelled matchmaking`);
     } catch (err) {
       logger.error('Handler', 'Cancel match error', err);
@@ -90,6 +90,16 @@ export function registerGameHandlers(io: TypedIO, socket: TypedSocket): void {
 
       // Broadcast updated state to all players in the game room
       io.to(`game:${payload.gameId}`).emit(ServerEvents.GAME_UPDATE, gameUpdate);
+
+      // Trigger engine evaluation for spectators/analysis
+      const { engineService } = await import('../services/engineService.js');
+      engineService.evaluatePosition(gameUpdate.fen).then((evalResult) => {
+        io.to(`game:${payload.gameId}`).emit(ServerEvents.GAME_EVALUATION, {
+          gameId: payload.gameId,
+          score: evalResult.score,
+          bestMove: evalResult.bestMove,
+        });
+      }).catch(err => logger.error('Handler', 'Eval failed', err));
 
       // If game is over, emit game over event
       if (gameOver) {
@@ -205,11 +215,64 @@ export function registerGameHandlers(io: TypedIO, socket: TypedSocket): void {
     }
   });
 
+  // ── Spectate ───────────────────────────────────────────
+
+  socket.on(ClientEvents.SPECTATE_GAME, async (payload) => {
+    try {
+      const state = await gameService.getGameState(payload.gameId);
+      if (!state) {
+        socket.emit(ServerEvents.ERROR, {
+          message: 'Game not found',
+          code: 'GAME_NOT_FOUND',
+        });
+        return;
+      }
+
+      // Join the game room as a spectator
+      socket.join(`game:${payload.gameId}`);
+
+      // Send current game state to the spectator
+      socket.emit(ServerEvents.GAME_UPDATE, {
+        gameId: state.gameId,
+        fen: state.fen,
+        turn: state.turn,
+        lastMove: null,
+        whiteTimeMs: state.whiteTimeMs,
+        blackTimeMs: state.blackTimeMs,
+        status: state.status,
+        pgn: state.pgn,
+        moveCount: state.moveCount,
+      });
+
+      logger.info('Handler', `${username} started spectating game ${payload.gameId}`);
+    } catch (err) {
+      logger.error('Handler', 'Spectate error', err);
+    }
+  });
+
+  // ── Chat ───────────────────────────────────────────────
+
+  socket.on(ClientEvents.SEND_CHAT, (payload) => {
+    logger.info('Chat', `💬 Message from ${username} in game ${payload.gameId}: ${payload.content}`);
+    
+    const chatMsg = {
+      id: Math.random().toString(36).substring(7),
+      gameId: payload.gameId,
+      senderId: userId,
+      senderName: username,
+      content: payload.content.substring(0, 500), // Cap length
+      timestamp: Date.now(),
+    };
+
+    // Broadcast to everyone in the room (including sender for simplicity/confirm)
+    io.to(`game:${payload.gameId}`).emit(ServerEvents.CHAT_MESSAGE, chatMsg);
+  });
+
   // ── Disconnect Handling ────────────────────────────────
 
   socket.on('disconnect', async () => {
     // Remove from matchmaking queue
-    await matchmakingService.removeFromAllQueues(userId);
+    await matchmakingService.removeSocketFromAllQueues(socket.id);
 
     // Check for active game
     const activeGame = await gameService.getActiveGameForUser(userId);

@@ -70,3 +70,28 @@ userRouter.get('/me/history', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch game history' });
   }
 });
+
+/**
+ * GET /users/games/:id
+ * Fetch details of a specific game for review
+ */
+userRouter.get('/games/:id', requireAuth, async (req, res) => {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: req.params.id },
+      include: {
+        whitePlayer: { select: { id: true, username: true, eloRating: true } },
+        blackPlayer: { select: { id: true, username: true, eloRating: true } },
+      },
+    });
+
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    res.json({ game });
+  } catch (error) {
+    logger.error('UserHandler', `Error fetching game ${req.params.id}`, error);
+    res.status(500).json({ error: 'Failed to fetch game details' });
+  }
+});

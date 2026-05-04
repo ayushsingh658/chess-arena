@@ -10,6 +10,10 @@ export interface Move {
   from: Square;
   to: Square;
   promotion?: 'q' | 'r' | 'b' | 'n';
+  // Enriched data from server for UI/Sounds
+  captured?: boolean;
+  san?: string;
+  color?: PieceColor;
 }
 
 export type GameStatus =

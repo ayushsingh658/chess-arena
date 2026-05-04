@@ -1,6 +1,7 @@
 import { redis } from '../config/redis.js';
 import { REDIS_KEYS, MATCHMAKING } from '@chess-arena/shared';
 import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
 import type { TimeControl } from '@chess-arena/shared';
 
 // ─────────────────────────────────────────────────────────
@@ -56,8 +57,13 @@ export async function joinQueue(
   // Use a composite key so the same user can't queue twice
   const queueKey = `${REDIS_KEYS.MATCHMAKING_QUEUE}:${timeControl.name}`;
 
-  // Remove any existing entry for this user first
-  await removeFromAllQueues(userId);
+  // Remove any existing entry for this specific socket first
+  await removeSocketFromAllQueues(socketId);
+  
+  // If self-match is disabled, also ensure no other tabs for this user are queueing
+  if (!env.ALLOW_SELF_MATCH) {
+    await removeUserFromAllQueues(userId);
+  }
 
   // Add to sorted set with Elo as score
   await redis.zadd(queueKey, eloRating, JSON.stringify(entry));
@@ -69,11 +75,32 @@ export async function joinQueue(
 }
 
 /**
- * Remove a player from all matchmaking queues.
- * Called on cancel, disconnect, or when matched.
+ * Remove a specific socket from all matchmaking queues.
  */
-export async function removeFromAllQueues(userId: string): Promise<void> {
-  // Get all queue keys
+export async function removeSocketFromAllQueues(socketId: string): Promise<void> {
+  const keys = await redis.keys(`${REDIS_KEYS.MATCHMAKING_QUEUE}:*`);
+
+  for (const key of keys) {
+    const members = await redis.zrange(key, 0, -1);
+    for (const member of members) {
+      try {
+        const entry = JSON.parse(member) as QueueEntry;
+        if (entry.socketId === socketId) {
+          await redis.zrem(key, member);
+          logger.info('Matchmaking', `${entry.username} (socket:${socketId}) removed from queue`);
+        }
+      } catch {
+        // Skip
+      }
+    }
+  }
+}
+
+/**
+ * Remove all entries for a user from all matchmaking queues.
+ * Used for hard resets or when self-matching is disabled.
+ */
+export async function removeUserFromAllQueues(userId: string): Promise<void> {
   const keys = await redis.keys(`${REDIS_KEYS.MATCHMAKING_QUEUE}:*`);
 
   for (const key of keys) {
@@ -83,10 +110,9 @@ export async function removeFromAllQueues(userId: string): Promise<void> {
         const entry = JSON.parse(member) as QueueEntry;
         if (entry.userId === userId) {
           await redis.zrem(key, member);
-          logger.info('Matchmaking', `${entry.username} removed from queue`);
         }
       } catch {
-        // Skip malformed entries
+        // Skip
       }
     }
   }
@@ -134,10 +160,10 @@ export async function scanForMatches(): Promise<MatchResult[]> {
     // Sort by join time (oldest first — they've waited longest)
     entries.sort((a, b) => a.joinedAt - b.joinedAt);
 
-    const matched = new Set<string>();
+      const matched = new Set<string>();
 
     for (const player of entries) {
-      if (matched.has(player.userId)) continue;
+      if (matched.has(player.socketId)) continue;
 
       const now = Date.now();
       const waitTimeMs = now - player.joinedAt;
@@ -154,8 +180,14 @@ export async function scanForMatches(): Promise<MatchResult[]> {
       let bestEloDiff = Infinity;
 
       for (const candidate of entries) {
-        if (candidate.userId === player.userId) continue;
-        if (matched.has(candidate.userId)) continue;
+        // Don't match with yourself unless specifically allowed in dev
+        if (candidate.userId === player.userId) {
+          if (!env.ALLOW_SELF_MATCH) continue;
+          // Even if self-matching is allowed, don't match the SAME tab
+          if (candidate.socketId === player.socketId) continue;
+        }
+        
+        if (matched.has(candidate.socketId)) continue;
 
         const eloDiff = Math.abs(player.eloRating - candidate.eloRating);
         if (eloDiff <= eloRange && eloDiff < bestEloDiff) {
@@ -165,8 +197,8 @@ export async function scanForMatches(): Promise<MatchResult[]> {
       }
 
       if (bestOpponent) {
-        matched.add(player.userId);
-        matched.add(bestOpponent.userId);
+        matched.add(player.socketId);
+        matched.add(bestOpponent.socketId);
 
         matches.push({
           player1: player,
@@ -175,8 +207,8 @@ export async function scanForMatches(): Promise<MatchResult[]> {
         });
 
         // Remove both from queue
-        await redis.zrem(queueKey, JSON.stringify(player));
-        await redis.zrem(queueKey, JSON.stringify(bestOpponent));
+        await removeSocketFromAllQueues(player.socketId);
+        await removeSocketFromAllQueues(bestOpponent.socketId);
 
         logger.info(
           'Matchmaking',

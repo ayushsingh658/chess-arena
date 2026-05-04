@@ -126,6 +126,6 @@ export const authApi = {
 };
 
 export const api = {
-  get: async (endpoint: string) => request<any>(endpoint, { method: 'GET' }),
-  post: async (endpoint: string, data: any) => request<any>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
+  get: async <T>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
+  post: async <T>(endpoint: string, data: any) => request<T>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
 };

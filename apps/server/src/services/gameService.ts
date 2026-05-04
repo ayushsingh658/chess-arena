@@ -78,6 +78,9 @@ export async function createGame(
     'EX',
     7200
   );
+  
+  // Add to active games set for spectators
+  await redis.sadd(REDIS_KEYS.ACTIVE_GAMES, gameId);
 
   logger.info(
     'Game',
@@ -271,8 +274,14 @@ async function endGame(
     await redis.del(`${REDIS_KEYS.GAME}${state.gameId}`);
     await redis.del(`${REDIS_KEYS.USER_ACTIVE_GAME}${state.whitePlayerId}`);
     await redis.del(`${REDIS_KEYS.USER_ACTIVE_GAME}${state.blackPlayerId}`);
+    await redis.srem(REDIS_KEYS.ACTIVE_GAMES, state.gameId);
 
     logger.info('Game', `🏁 Game ${state.gameId} ended: ${result}`);
+
+    // Trigger background analysis
+    import('./analysisService.js').then(({ performAutoAnalysis }) => {
+      performAutoAnalysis(state.gameId).catch(e => logger.error('Game', 'Auto-analysis failed', e));
+    });
 
     // Return payload
     return {
@@ -364,6 +373,40 @@ export async function getActiveGameForUser(userId: string): Promise<GameState | 
   const gameId = await redis.get(`${REDIS_KEYS.USER_ACTIVE_GAME}${userId}`);
   if (!gameId) return null;
   return getGameState(gameId);
+}
+
+/**
+ * Get all currently active games for spectators.
+ * Returns game states including player names (fetched from DB/Cache).
+ */
+export async function getLiveGames(): Promise<any[]> {
+  const gameIds = await redis.smembers(REDIS_KEYS.ACTIVE_GAMES);
+  if (!gameIds.length) return [];
+
+  const gameStates = await Promise.all(
+    gameIds.map((id) => getGameState(id))
+  );
+
+  // Filter out any nulls (shouldn't happen but safe)
+  const activeGames = gameStates.filter((g): g is GameState => g !== null);
+
+  // Enrich with player info
+  const enrichedGames = await Promise.all(
+    activeGames.map(async (game) => {
+      const [white, black] = await Promise.all([
+        prisma.user.findUnique({ where: { id: game.whitePlayerId }, select: { username: true, eloRating: true } }),
+        prisma.user.findUnique({ where: { id: game.blackPlayerId }, select: { username: true, eloRating: true } }),
+      ]);
+
+      return {
+        ...game,
+        whitePlayer: white,
+        blackPlayer: black,
+      };
+    })
+  );
+
+  return enrichedGames;
 }
 
 /**

@@ -3,25 +3,15 @@ import { Chessboard } from 'react-chessboard';
 import { useGameStore } from '../../stores/gameStore';
 import { useAuthStore } from '../../stores/authStore';
 import {
-  ChessClock,
+  PlayerCard,
   MoveHistory,
   GameOverModal,
-  SearchingOverlay,
+  EvaluationBar,
 } from '../../components/Game/GameComponents';
+import { ChatPanel } from '../../components/Game/ChatPanel';
+import { motion } from 'framer-motion';
 import type { Square } from 'react-chessboard/dist/chessboard/types';
-
-// ─────────────────────────────────────────────────────────
-// Game Page
-// ─────────────────────────────────────────────────────────
-// The core game screen with:
-//   - Chessboard (react-chessboard)
-//   - Two clocks (opponent top, player bottom)
-//   - Move history panel
-//   - Resign button
-//
-// The board is oriented based on the player's color.
-// Moves are sent to the server for validation — the board
-// only updates when the server broadcasts GAME_UPDATE.
+import { LogOut } from 'lucide-react';
 
 export function GamePage() {
   const user = useAuthStore((s) => s.user);
@@ -30,36 +20,35 @@ export function GamePage() {
     fen,
     turn,
     playerColor,
-    opponentName,
-    opponentRating,
+    isSpectating,
+    whitePlayerName,
+    whitePlayerRating,
+    blackPlayerName,
+    blackPlayerRating,
     whiteTimeMs,
     blackTimeMs,
     lastMove,
+    evaluation,
     opponentDisconnected,
     makeMove,
+    resetGame,
     resign,
     initSocketListeners,
     cleanupSocketListeners,
   } = useGameStore();
 
-  // Set up socket listeners when game page mounts
   useEffect(() => {
     initSocketListeners();
     return () => cleanupSocketListeners();
   }, [initSocketListeners, cleanupSocketListeners]);
 
-  // Handle piece drop
   const onDrop = useCallback(
     (sourceSquare: Square, targetSquare: Square, piece: string): boolean => {
-      // Only allow moves on player's turn
-      if (!playerColor) return false;
-      if (turn !== playerColor) return false;
-
-      // Check if this is the player's piece
+      if (isSpectating) return false;
+      if (!playerColor || turn !== playerColor) return false;
       const pieceColor = piece[0] === 'w' ? 'w' : 'b';
       if (pieceColor !== playerColor) return false;
 
-      // Determine if promotion
       const isPromotion =
         piece[1] === 'P' &&
         ((pieceColor === 'w' && targetSquare[1] === '8') ||
@@ -68,111 +57,173 @@ export function GamePage() {
       makeMove({
         from: sourceSquare,
         to: targetSquare,
-        promotion: isPromotion ? 'q' : undefined, // Auto-promote to queen
+        promotion: isPromotion ? 'q' : undefined,
       });
 
-      // Return false — don't update board locally.
-      // The board updates only when the server confirms via GAME_UPDATE.
-      // This IS the authoritative server pattern.
       return false;
     },
-    [playerColor, turn, makeMove]
+    [playerColor, turn, makeMove, isSpectating]
   );
 
   if (!user) return null;
 
-  // Determine board orientation
   const boardOrientation = playerColor === 'b' ? 'black' : 'white';
+  const isPlayerWhite = playerColor === 'w' || isSpectating; // Default to white view for spectators
+  
+  // Logic for top/bottom players
+  const topPlayer = isPlayerWhite ? {
+    name: blackPlayerName || 'Black',
+    rating: blackPlayerRating || 1200,
+    time: blackTimeMs,
+    isActive: turn === 'b',
+    color: 'b' as const
+  } : {
+    name: whitePlayerName || 'White',
+    rating: whitePlayerRating || 1200,
+    time: whiteTimeMs,
+    isActive: turn === 'w',
+    color: 'w' as const
+  };
 
-  // Determine opponent and player info
-  const isPlayerWhite = playerColor === 'w';
-  const playerTimeMs = isPlayerWhite ? whiteTimeMs : blackTimeMs;
-  const opponentTimeMs = isPlayerWhite ? blackTimeMs : whiteTimeMs;
-  const isPlayerTurn = turn === playerColor;
+  const bottomPlayer = isPlayerWhite ? {
+    name: whitePlayerName || 'White',
+    rating: whitePlayerRating || 1200,
+    time: whiteTimeMs,
+    isActive: turn === 'w',
+    color: 'w' as const
+  } : {
+    name: blackPlayerName || 'Black',
+    rating: blackPlayerRating || 1200,
+    time: blackTimeMs,
+    isActive: turn === 'b',
+    color: 'b' as const
+  };
 
-  // Highlight last move squares
   const customSquareStyles: Record<string, React.CSSProperties> = {};
   if (lastMove) {
-    customSquareStyles[lastMove.from] = {
-      backgroundColor: 'rgba(255, 255, 0, 0.25)',
-    };
-    customSquareStyles[lastMove.to] = {
-      backgroundColor: 'rgba(255, 255, 0, 0.25)',
-    };
+    customSquareStyles[lastMove.from] = { backgroundColor: 'rgba(255, 255, 255, 0.15)' };
+    customSquareStyles[lastMove.to] = { backgroundColor: 'rgba(255, 255, 255, 0.15)' };
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-accent-purple/6 blur-[100px]" />
-        <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full bg-accent-cyan/6 blur-[80px]" />
-      </div>
-
+    <div className="min-h-screen pt-28 pb-10 px-8 relative z-10">
       {/* Overlays */}
-      {phase === 'searching' && <SearchingOverlay />}
       {phase === 'gameOver' && <GameOverModal />}
 
       {/* Opponent disconnect banner */}
-      {opponentDisconnected && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-warning/90 text-black text-center py-2 text-sm font-medium">
-          ⚠️ Opponent disconnected — waiting for reconnection...
-        </div>
+      {opponentDisconnected && !isSpectating && (
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-white text-black px-6 py-2 rounded-full text-xs font-bold tracking-widest uppercase shadow-2xl"
+        >
+          ⚠️ Opponent disconnected • Waiting...
+        </motion.div>
       )}
 
-      {/* Game layout */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
-          {/* Left: Board + Clocks */}
-          <div className="flex flex-col gap-3 w-full max-w-lg">
-            {/* Opponent clock (top) */}
-            <ChessClock
-              timeMs={opponentTimeMs}
-              isActive={!isPlayerTurn && phase === 'playing'}
-              color={playerColor === 'w' ? 'b' : 'w'}
-              playerName={opponentName || 'Opponent'}
-              rating={opponentRating || 1200}
+      {/* Spectator Indicator */}
+      {isSpectating && (
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-white/[0.05] backdrop-blur-xl border border-white/10 text-white px-6 py-2 rounded-full text-[10px] font-bold tracking-widest uppercase flex items-center gap-2 shadow-2xl"
+        >
+          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          Live Spectating
+        </motion.div>
+      )}
+
+      {/* Game layout — Cinematic Theater Mode */}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-10 items-stretch justify-center">
+          
+          {/* Left: The Arena (Board + Clocks) */}
+          <motion.div 
+            initial={{ scale: 0.98, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex flex-col gap-6 w-full max-w-[640px]"
+          >
+            {/* Top HUD */}
+            <PlayerCard
+              timeMs={topPlayer.time}
+              isActive={topPlayer.isActive && phase === 'playing'}
+              color={topPlayer.color}
+              playerName={topPlayer.name}
+              rating={topPlayer.rating}
+              fen={fen}
             />
 
-            {/* Chess Board */}
-            <div className="aspect-square w-full rounded-lg overflow-hidden shadow-2xl">
-              <Chessboard
-                position={fen}
-                onPieceDrop={onDrop}
-                boardOrientation={boardOrientation}
-                customSquareStyles={customSquareStyles}
-                customDarkSquareStyle={{ backgroundColor: '#7b6b5a' }}
-                customLightSquareStyle={{ backgroundColor: '#e8dcc8' }}
-                animationDuration={200}
-              />
+            {/* The Board + Eval Bar */}
+            <div className="flex gap-4 items-stretch h-full">
+              <EvaluationBar score={evaluation} isSpectating={isSpectating} />
+              
+              <div className="aspect-square flex-1 rounded-[40px] overflow-hidden shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] border border-white/10 bg-zinc-900 group relative">
+                <Chessboard
+                  position={fen}
+                  onPieceDrop={onDrop}
+                  boardOrientation={boardOrientation}
+                  customSquareStyles={customSquareStyles}
+                  customDarkSquareStyle={{ backgroundColor: '#27272a' }}
+                  customLightSquareStyle={{ backgroundColor: '#d4d4d8' }}
+                  animationDuration={250}
+                  customBoardStyle={{ borderRadius: '40px' }}
+                  arePiecesDraggable={!isSpectating}
+                />
+                {isSpectating && (
+                  <div className="absolute inset-0 z-20 pointer-events-none border-[12px] border-white/5 rounded-[40px]" />
+                )}
+              </div>
             </div>
 
-            {/* Player clock (bottom) */}
-            <ChessClock
-              timeMs={playerTimeMs}
-              isActive={isPlayerTurn && phase === 'playing'}
-              color={playerColor || 'w'}
-              playerName={user.username}
-              rating={user.eloRating}
+            {/* Bottom HUD */}
+            <PlayerCard
+              timeMs={bottomPlayer.time}
+              isActive={bottomPlayer.isActive && phase === 'playing'}
+              color={bottomPlayer.color}
+              playerName={bottomPlayer.name}
+              rating={bottomPlayer.rating}
+              fen={fen}
             />
-          </div>
+          </motion.div>
 
-          {/* Right: Move history + Controls */}
-          <div className="w-full lg:w-72 flex flex-col gap-3">
-            <MoveHistory />
+          {/* Right: Intelligence Panel (History + Chat) */}
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="w-full lg:w-[400px] flex flex-col gap-6"
+          >
+            <div className="h-[240px]">
+              <MoveHistory />
+            </div>
 
-            {/* Game controls */}
-            {phase === 'playing' && (
-              <div className="flex gap-2">
+            <div className="flex-1 min-h-[300px]">
+              <ChatPanel />
+            </div>
+
+            {/* Meta Actions */}
+            <div className="flex gap-4">
+              {isSpectating ? (
+                <button
+                  onClick={resetGame}
+                  className="btn-primary flex-1 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Stop Watching
+                </button>
+              ) : (
                 <button
                   onClick={resign}
-                  className="btn-danger flex-1 text-sm py-2.5"
+                  className="btn-secondary flex-1 text-xs font-bold tracking-widest uppercase border-white/5 hover:border-white/20"
                 >
-                  🏳️ Resign
+                  Resign
                 </button>
-              </div>
-            )}
-          </div>
+              )}
+              <button className="btn-secondary w-14 flex items-center justify-center p-0">
+                ⚙️
+              </button>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>

@@ -63,6 +63,13 @@ model Game {
   playedAt      DateTime    @default(now())
   endedAt       DateTime?
 
+  // Analysis & Anti-Cheat
+  analysisJson  String?     @db.Text // Store full move-by-move eval
+  whiteAccuracy Float?
+  blackAccuracy Float?
+  isFlagged     Boolean     @default(false)
+  flagReason    String?
+
   whitePlayer User  @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
   blackPlayer User  @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
   winner      User? @relation("Winner", fields: [winnerId], references: [id])

@@ -6,6 +6,7 @@
 
 export * from './types/user.js';
 export * from './types/game.js';
+export * from './types/chat.js';
 export * from './types/matchmaking.js';
 export * from './types/socket-events.js';
 export * from './constants/index.js';
