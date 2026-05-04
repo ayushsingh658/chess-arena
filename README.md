@@ -5,7 +5,9 @@
 ## 🚀 Features
 
 - **Real-Time Multiplayer:** Instant move validation and syncing using WebSockets.
-- **Apple-Inspired Aesthetic:** A beautiful, distraction-free monochrome "Bento Box" UI with smooth Framer Motion interactions and frosted glassmorphism.
+- **Apple-Inspired Aesthetic:** A beautiful, distraction-free monochrome "Bento Box" UI with smooth Framer Motion interactions, frosted glassmorphism, and premium high-fidelity sound effects.
+- **Spectator Mode:** Watch high-level matches in real-time with live evaluation bars and engine insights.
+- **Anti-Cheat Engine:** Integrated Stockfish 16 on the backend for automated post-match accuracy analysis and suspicious play flagging.
 - **Guest Mode:** Frictionless anonymous login system allowing users to instantly join the matchmaking pool without registering.
 - **Authoritative Server:** Game logic runs on the backend to prevent cheating.
 - **Monorepo Architecture:** Built using Turborepo to seamlessly share types and logic between the client and server.
