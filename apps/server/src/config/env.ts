@@ -25,6 +25,9 @@ const envSchema = z.object({
 
   // Testing
   ALLOW_SELF_MATCH: z.coerce.boolean().default(false),
+
+  // Observability
+  SENTRY_DSN: z.string().optional(),
 });
 
 function validateEnv() {

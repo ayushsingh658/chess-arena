@@ -47,4 +47,6 @@ export const REDIS_KEYS = {
   USER_SOCKET: 'user:socket:',
   USER_ACTIVE_GAME: 'user:active-game:',
   ACTIVE_GAMES: 'games:active',
+  LEADERBOARD: 'leaderboard:top50',
 } as const;
+

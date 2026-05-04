@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { createSocketServer } from './config/socket.js';
+import { initSentry } from './config/sentry.js';
 import { socketAuthMiddleware } from './middleware/socketAuth.js';
 import { authRouter } from './handlers/authHandler.js';
 import { userRouter } from './handlers/userHandler.js';
@@ -12,10 +13,14 @@ import { registerGameHandlers } from './handlers/gameHandler.js';
 import { startMatchmakingWorker } from './workers/matchmakingWorker.js';
 import { startClockWorker } from './workers/clockWorker.js';
 import { logger } from './utils/logger.js';
+import { apiRateLimiter } from './middleware/rateLimit.js';
 
 // ─────────────────────────────────────────────────────────
 // Server Entry Point
 // ─────────────────────────────────────────────────────────
+
+// Initialize Error Tracking
+initSentry();
 
 const app = express();
 
@@ -26,6 +31,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Apply general API rate limiting
+app.use(apiRateLimiter);
 
 // ── Health Check ───────────────────────────────────────
 app.get('/health', (_req, res) => {
@@ -79,14 +87,34 @@ httpServer.listen(env.PORT, () => {
 });
 
 // ── Graceful Shutdown ──────────────────────────────────
-function gracefulShutdown(signal: string) {
+async function gracefulShutdown(signal: string) {
   logger.info('Server', `${signal} received. Shutting down gracefully...`);
 
-  httpServer.close(() => {
+  // Stop accepting new socket connections
+  io.close();
+
+  httpServer.close(async () => {
     logger.info('Server', 'HTTP server closed');
-    process.exit(0);
+
+    try {
+      // Close Database Connections
+      const { prisma } = await import('./config/database.js');
+      await prisma.$disconnect();
+      logger.info('Server', 'Prisma disconnected');
+
+      // Close Redis Connections
+      const { redis } = await import('./config/redis.js');
+      await redis.quit();
+      logger.info('Server', 'Redis disconnected');
+
+      process.exit(0);
+    } catch (err) {
+      logger.error('Server', 'Error during shutdown', err);
+      process.exit(1);
+    }
   });
 
+  // Force exit after 10 seconds if graceful shutdown hangs
   setTimeout(() => {
     logger.error('Server', 'Forced shutdown after timeout');
     process.exit(1);

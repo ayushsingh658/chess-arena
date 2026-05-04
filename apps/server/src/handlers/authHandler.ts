@@ -8,6 +8,7 @@ import {
 } from '../utils/validators.js';
 import { AppError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import { authRateLimiter } from '../middleware/rateLimit.js';
 import type { Request, Response } from 'express';
 
 // ─────────────────────────────────────────────────────────
@@ -19,6 +20,9 @@ import type { Request, Response } from 'express';
 // GET  /auth/me        — Get current user profile
 
 export const authRouter = Router();
+
+// Apply strict rate limiting to all auth routes
+authRouter.use(authRateLimiter);
 
 /**
  * POST /auth/register

@@ -280,7 +280,7 @@ async function endGame(
 
     // Trigger background analysis
     import('./analysisService.js').then(({ performAutoAnalysis }) => {
-      performAutoAnalysis(state.gameId).catch(e => logger.error('Game', 'Auto-analysis failed', e));
+      performAutoAnalysis(state.gameId, state.pgn).catch(e => logger.error('Game', 'Auto-analysis queue failed', e));
     });
 
     // Return payload

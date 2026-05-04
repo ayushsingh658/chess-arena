@@ -1,38 +1,43 @@
+import pino from 'pino';
+import { env } from '../config/env.js';
+
 // ─────────────────────────────────────────────────────────
-// Logger Utility
+// Production-Grade Structured Logger (Pino)
 // ─────────────────────────────────────────────────────────
-// Simple structured logger. In production, swap this for
-// pino or winston with JSON formatting for log aggregation.
+// Pino provides high-performance JSON logging.
+// In production, logs are JSON for aggregation (Datadog/Loki).
+// In development, pino-pretty makes logs human-readable.
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+const transport = env.NODE_ENV === 'development'
+  ? {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    }
+  : undefined;
 
-const LOG_COLORS: Record<LogLevel, string> = {
-  debug: '\x1b[90m',  // gray
-  info: '\x1b[36m',   // cyan
-  warn: '\x1b[33m',   // yellow
-  error: '\x1b[31m',  // red
-};
+const pinoLogger = pino({
+  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  transport,
+});
 
-const RESET = '\x1b[0m';
-
-function formatTimestamp(): string {
-  return new Date().toISOString();
-}
-
-function log(level: LogLevel, context: string, message: string, data?: unknown): void {
-  const color = LOG_COLORS[level];
-  const prefix = `${color}[${formatTimestamp()}] [${level.toUpperCase()}] [${context}]${RESET}`;
-
-  if (data !== undefined) {
-    console.log(`${prefix} ${message}`, data);
-  } else {
-    console.log(`${prefix} ${message}`);
-  }
-}
-
+/**
+ * Wrapper for Pino to maintain compatibility with the existing
+ * logger API: logger.info(context, message, data)
+ */
 export const logger = {
-  debug: (ctx: string, msg: string, data?: unknown) => log('debug', ctx, msg, data),
-  info: (ctx: string, msg: string, data?: unknown) => log('info', ctx, msg, data),
-  warn: (ctx: string, msg: string, data?: unknown) => log('warn', ctx, msg, data),
-  error: (ctx: string, msg: string, data?: unknown) => log('error', ctx, msg, data),
+  debug: (ctx: string, msg: string, data?: any) => 
+    pinoLogger.debug({ context: ctx, ...data }, msg),
+    
+  info: (ctx: string, msg: string, data?: any) => 
+    pinoLogger.info({ context: ctx, ...data }, msg),
+    
+  warn: (ctx: string, msg: string, data?: any) => 
+    pinoLogger.warn({ context: ctx, ...data }, msg),
+    
+  error: (ctx: string, msg: string, data?: any) => 
+    pinoLogger.error({ context: ctx, ...data }, msg),
 };
