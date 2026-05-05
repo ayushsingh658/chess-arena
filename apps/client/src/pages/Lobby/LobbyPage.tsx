@@ -70,14 +70,14 @@ export function LobbyPage() {
         {/* Subtle background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 blur-[200px] rounded-full pointer-events-none -z-10" />
         
-        <div className="max-w-4xl mx-auto flex flex-col items-center">
+        <div className="max-w-5xl mx-auto flex flex-col items-center">
           {/* Play Mode Switcher */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full text-center mb-10"
           >
-            <h2 className="text-5xl font-bold tracking-tight mb-6 text-white">
+            <h2 className="text-6xl font-bold tracking-tighter mb-8 text-gradient">
               {playMode === 'online' ? 'Play Online' : 'Play Computer'}
             </h2>
             <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5 gap-1">
@@ -137,11 +137,11 @@ export function LobbyPage() {
               >
                 {timeControlGroups.map((group, groupIdx) => (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: groupIdx * 0.1, duration: 0.5, ease: 'easeOut' }}
                     key={group.label} 
-                    className="glass-card p-8 flex flex-col"
+                    className="glass-card p-10 flex flex-col"
                   >
                     <div className="flex items-center gap-3 mb-6">
                       <span className="text-3xl">{group.icon}</span>
@@ -188,9 +188,9 @@ export function LobbyPage() {
                   transition={{ delay: 0, duration: 0.5, ease: 'easeOut' }}
                   className="glass-card p-8 flex flex-col"
                 >
-                  <div className="flex items-center gap-3 mb-6">
-                    <span className="text-3xl">🧠</span>
-                    <h3 className="text-2xl font-semibold text-white">Difficulty</h3>
+                  <div className="flex items-center gap-4 mb-8">
+                    <span className="text-4xl">🧠</span>
+                    <h3 className="text-3xl font-semibold text-white tracking-tight">Difficulty</h3>
                   </div>
                   <div className="flex flex-col gap-3 mt-auto">
                     {difficulties.map((diff) => (

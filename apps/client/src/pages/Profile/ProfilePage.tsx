@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useUserStore } from '../../stores/userStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Trophy, Target, Activity, Award, ChevronRight, Clock, Shield } from 'lucide-react';
+import { Trophy, Target, Activity, Award, Clock, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function ProfilePage() {
@@ -46,7 +46,7 @@ export function ProfilePage() {
           
           <div className="flex-1 text-center md:text-left pb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-              <h2 className="text-6xl font-bold tracking-tighter text-white">{user?.username}</h2>
+              <h2 className="text-7xl font-bold tracking-tighter text-gradient">{user?.username}</h2>
               <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold tracking-widest uppercase text-text-muted">
                 Arena Member
               </div>
@@ -60,7 +60,7 @@ export function ProfilePage() {
       </motion.div>
 
       {/* Stats Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-16">
         <StatCard 
           icon={<Trophy className="text-white" size={24} />} 
           label="Rating" 
@@ -117,46 +117,58 @@ export function ProfilePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {history.map((match, idx) => (
-                  <motion.tr 
-                    key={match.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 + (idx * 0.05) }}
-                    className="group hover:bg-white/[0.02] transition-colors cursor-pointer"
-                  >
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-white border border-white/10 group-hover:bg-white group-hover:text-black transition-all">
-                          {match.opponent.charAt(0)}
+                {history.map((match, idx) => {
+                  const isWhite = match.whitePlayer.id === user?.id;
+                  const opponent = isWhite ? match.blackPlayer : match.whitePlayer;
+                  const result = match.result;
+                  
+                  let outcome: 'win' | 'loss' | 'draw' = 'draw';
+                  if (result === 'WHITE_WINS') outcome = isWhite ? 'win' : 'loss';
+                  else if (result === 'BLACK_WINS') outcome = isWhite ? 'loss' : 'win';
+                  else if (result === 'DRAW') outcome = 'draw';
+                  // Handle other results as losses for simplicity or refine as needed
+                  else outcome = 'loss';
+
+                  return (
+                    <motion.tr 
+                      key={match.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 + (idx * 0.05) }}
+                      className="group hover:bg-white/[0.02] transition-colors cursor-pointer"
+                    >
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-white border border-white/10 group-hover:bg-white group-hover:text-black transition-all">
+                            {opponent.username.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">{opponent.username}</p>
+                            <p className="text-[10px] text-text-muted uppercase tracking-wider font-medium">{match.totalMoves} Moves</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-white">{match.opponent}</p>
-                          <p className="text-[10px] text-text-muted uppercase tracking-wider font-medium">{match.timeControl}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className={`text-xs font-bold tracking-widest uppercase ${
-                        match.result === 'win' ? 'text-white' : 
-                        match.result === 'loss' ? 'text-text-muted opacity-50' : 'text-text-secondary'
-                      }`}>
-                        {match.result === 'win' ? 'Victory' : match.result === 'loss' ? 'Defeat' : 'Draw'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-bold text-white">{match.ratingAfter}</span>
-                        <span className={`text-[10px] font-bold ${match.ratingChange >= 0 ? 'text-white/40' : 'text-danger/60'}`}>
-                          {match.ratingChange >= 0 ? `+${match.ratingChange}` : match.ratingChange}
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className={`text-xs font-bold tracking-widest uppercase ${
+                          outcome === 'win' ? 'text-white' : 
+                          outcome === 'loss' ? 'text-text-muted opacity-50' : 'text-text-secondary'
+                        }`}>
+                          {outcome === 'win' ? 'Victory' : outcome === 'loss' ? 'Defeat' : 'Draw'}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-right text-xs font-bold text-text-muted tabular-nums">
-                      {new Date(match.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </td>
-                  </motion.tr>
-                ))}
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-bold text-white">
+                            {isWhite ? match.whitePlayer.eloRating : match.blackPlayer.eloRating}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right text-xs font-bold text-text-muted tabular-nums">
+                        {new Date(match.playedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
                 {history.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-8 py-20 text-center text-text-muted text-sm italic">
@@ -182,7 +194,13 @@ export function ProfilePage() {
               Arena Status
             </h3>
             <div className="space-y-4">
-              <AchievementItem title="First Blood" desc="Win your first multiplayer game" progress={history.some(m => m.result === 'win') ? 100 : 0} completed={history.some(m => m.result === 'win')} />
+              <AchievementItem title="First Blood" desc="Win your first multiplayer game" progress={history.some(m => {
+                const isWhite = m.whitePlayer.id === user?.id;
+                return (isWhite && m.result === 'WHITE_WINS') || (!isWhite && m.result === 'BLACK_WINS');
+              }) ? 100 : 0} completed={history.some(m => {
+                const isWhite = m.whitePlayer.id === user?.id;
+                return (isWhite && m.result === 'WHITE_WINS') || (!isWhite && m.result === 'BLACK_WINS');
+              })} />
               <AchievementItem title="Veteran" desc="Play 50 games in the Arena" progress={Math.min(100, (stats.gamesPlayed / 50) * 100)} completed={stats.gamesPlayed >= 50} />
               <AchievementItem title="Rating 1500" desc="Reach 1500 Elo Rating" progress={Math.min(100, (stats.eloRating / 1500) * 100)} completed={stats.eloRating >= 1500} />
             </div>

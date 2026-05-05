@@ -18,7 +18,7 @@ export function LeaderboardPage() {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const res = await api.get('/users/leaderboard');
+        const res = await api.get<{ players: LeaderboardPlayer[] }>('/users/leaderboard');
         setPlayers(res.players);
       } catch (err) {
         console.error('Failed to fetch leaderboard', err);
@@ -30,8 +30,8 @@ export function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-12">
-      <h2 className="text-3xl font-bold gradient-text mb-2">Global Leaderboard</h2>
+    <div className="max-w-5xl mx-auto px-8 py-12 pt-28">
+      <h2 className="text-7xl font-bold tracking-tighter text-gradient mb-4">Global Leaderboard</h2>
       <p className="text-text-muted mb-8">Top 50 highest rated players in the arena.</p>
 
       {isLoading ? (

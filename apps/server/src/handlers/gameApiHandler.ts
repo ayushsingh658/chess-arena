@@ -46,16 +46,18 @@ gameRouter.post('/:id/analyze', async (req, res) => {
       const fen = analysisChess.fen();
       const evalResult = await engineService.evaluatePosition(fen, 10); // Lower depth for speed
       
+      const move = history[i];
+      
       analysisResults.push({
         moveIndex: i,
         fen,
         score: evalResult.score,
         bestMove: evalResult.bestMove,
-        movePlayed: i < history.length ? history[i].san : null,
+        movePlayed: move ? move.san : null,
       });
       
-      if (i < history.length) {
-        analysisChess.move(history[i]);
+      if (move) {
+        analysisChess.move(move);
       }
     }
 

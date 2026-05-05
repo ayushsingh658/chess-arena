@@ -260,7 +260,7 @@ async function endGame(
     });
 
     // Update player stats
-    await updatePlayerStats(state.whitePlayerId, state.blackPlayerId, result);
+    await updatePlayerStats(state.whitePlayerId, state.blackPlayerId, result, winnerId);
     
     // Update Elo ratings
     const { whiteEloChange, blackEloChange } = await updateRatings(
@@ -313,26 +313,23 @@ async function endGame(
 async function updatePlayerStats(
   whiteId: string,
   blackId: string,
-  result: GameResult
+  result: GameResult,
+  winnerId: string | null
 ): Promise<void> {
-  const whiteUpdate: Record<string, number> = { gamesPlayed: 1 };
-  const blackUpdate: Record<string, number> = { gamesPlayed: 1 };
+  const whiteUpdate = { gamesPlayed: 1, wins: 0, losses: 0, draws: 0 };
+  const blackUpdate = { gamesPlayed: 1, wins: 0, losses: 0, draws: 0 };
 
-  if (result === 'WHITE_WINS' || (result === 'TIMEOUT' || result === 'RESIGNATION' || result === 'ABANDONMENT')) {
-    // For timeout/resignation/abandonment, the winnerId determines who won
-    // but for simplicity here, WHITE_WINS/BLACK_WINS is already resolved
-    if (result === 'WHITE_WINS') {
-      whiteUpdate.wins = 1;
-      blackUpdate.losses = 1;
-    }
-  }
-  if (result === 'BLACK_WINS') {
-    whiteUpdate.losses = 1;
-    blackUpdate.wins = 1;
-  }
   if (result === 'DRAW') {
     whiteUpdate.draws = 1;
     blackUpdate.draws = 1;
+  } else if (winnerId) {
+    if (winnerId === whiteId) {
+      whiteUpdate.wins = 1;
+      blackUpdate.losses = 1;
+    } else if (winnerId === blackId) {
+      whiteUpdate.losses = 1;
+      blackUpdate.wins = 1;
+    }
   }
 
   await Promise.all([

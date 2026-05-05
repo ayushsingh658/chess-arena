@@ -2,8 +2,8 @@ import { Chessboard } from 'react-chessboard';
 import { useReviewStore } from '../../stores/reviewStore';
 import { useEngineStore } from '../../stores/engineStore';
 import { PlayerCard } from '../../components/Game/GameComponents';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, Download, Zap, ZapOff, BrainCircuit, Target, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, Download, Zap, ZapOff, BrainCircuit, TrendingUp } from 'lucide-react';
 import { useEffect } from 'react';
 
 export function ReviewPage({ onExit }: { onExit: () => void }) {
@@ -88,7 +88,7 @@ export function ReviewPage({ onExit }: { onExit: () => void }) {
           </button>
 
           <div className="flex flex-col items-center">
-            <h2 className="text-2xl font-bold tracking-tight text-white">Match Review</h2>
+            <h2 className="text-3xl font-bold tracking-tighter text-gradient">Match Review</h2>
             <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold mt-1">
               {analysis ? 'Full Game Analyzed' : 'Post-Game Analysis'}
             </p>
@@ -141,13 +141,13 @@ export function ReviewPage({ onExit }: { onExit: () => void }) {
           </div>
 
           {/* Left: Board & Players */}
-          <div className="flex flex-col gap-4 w-full max-w-xl">
+          <div className="flex flex-col gap-6 w-full max-w-xl">
             {blackPlayer && (
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <PlayerCard 
-                    playerName={blackPlayer.username}
-                    rating={blackPlayer.eloRating}
+                    playerName={blackPlayer?.username || 'Black Player'}
+                    rating={blackPlayer?.eloRating || 1200}
                     color="b"
                     isActive={currentIndex > 0 && currentIndex % 2 === 0}
                     timeMs={undefined as any}
@@ -189,8 +189,8 @@ export function ReviewPage({ onExit }: { onExit: () => void }) {
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <PlayerCard 
-                    playerName={whitePlayer.username}
-                    rating={whitePlayer.eloRating}
+                    playerName={whitePlayer?.username || 'White Player'}
+                    rating={whitePlayer?.eloRating || 1200}
                     color="w"
                     isActive={currentIndex % 2 !== 0 || currentIndex === 0}
                     timeMs={undefined as any}
